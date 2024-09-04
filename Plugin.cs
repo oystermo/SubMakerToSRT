@@ -182,7 +182,15 @@ namespace Nikse.SubtitleEdit.PluginLogic
                 }
                 else if (brackets == 3)
                 {
-                    new_content += content[i].ToString();
+                    if ((content[i].ToString() == "\\") && (content[i+1].ToString() == "\""))
+                    {
+                        i++;
+                        continue;
+                    }
+                    else
+                    {
+                        new_content += content[i].ToString();
+                    }
                 }
                 i++;
             }
