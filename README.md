@@ -7,4 +7,7 @@ Files are converted into .srt format, empty (null) lines are removed.
 2. Copy dll file into SubtitleEdit plugins folder
 3. Plugin should appear in "file" menu
 
+![alt text](image.png)
+![alt text](image-1.png)
+
 [^1]: Plugin logic credits to Nikse (plugin based off of Haxor). Code includes MainForm, which appears crucial for compiling, though is not part of the converter logic (which is all under Plugin.cs)
