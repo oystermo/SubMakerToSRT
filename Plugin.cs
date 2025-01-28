@@ -1,7 +1,9 @@
-﻿using SubtitleEdit;
+﻿using Newtonsoft.Json;
+using SubtitleEdit;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.Remoting.Contexts;
 using System.Text;
 using System.Windows.Forms;
 
@@ -39,9 +41,23 @@ namespace Nikse.SubtitleEdit.PluginLogic
             get { return string.Empty; }
         }
 
+        public class Title
+        {
+            public string text { get; set; }
+            public int time_in { get; set; }
+            public int time_out { get; set; }
+            public int align { get; set; }
+        }
+
+        public class VideoData
+        {
+            public string video { get; set; }
+            public List<Title> titles { get; set; }
+        }
+
         public string DoAction(Form parentForm, string subRipText, double frameRate, string listViewLineSeparatorString, string srtFileName, string videoFileName, string rawText)
         {
-            string text1 = "";
+            string contents = "";
             string final1 = "";
 
             using (var openFileDialog1 = new OpenFileDialog())
@@ -49,42 +65,40 @@ namespace Nikse.SubtitleEdit.PluginLogic
                 openFileDialog1.Title = "Open subtitle file...";
                 openFileDialog1.FileName = string.Empty;
                 openFileDialog1.Filter = "Subtitle files|*.sub";
-                openFileDialog1.FileName = string.Empty;
                 if (openFileDialog1.ShowDialog() != DialogResult.OK)
                 {
                     return string.Empty;
                 }
                 using (var reader = new StreamReader(openFileDialog1.FileName))
                 {
-                    text1 = reader.ReadToEnd();
+                    contents = reader.ReadToEnd();
                 }
 
-                string no_r = remove_r(text1);
-                string filtered = filter_content(no_r);
-                string[] subs = no_r.Split('\n');
-                int k = 0;
-                int count = 0;
-                while (k < subs.Length - 3)
+                contents = contents.Replace("\\r\\n", "\\n");
+
+                var videoData = JsonConvert.DeserializeObject<VideoData>(contents);
+
+                int titleNum = 1;
+                foreach (var title in videoData.titles)
                 {
-                    if (subs[k].Contains("text"))
+                    string titleText = title.text;
+                    int titleIn = title.time_in;
+                    int titleOut = title.time_out;
+                    if ((titleIn == 0) && (titleOut == 0))
                     {
-                        count++;
-                        string current_r = remove_r(subs[k]);
-                        string current_f = filter_content(current_r);
-                        int curr_in = -1;
-                        int curr_out = -1;
-                        if ((subs[k + 1].Contains("time_in")) && (subs[k + 2].Contains("time_out")))
+                        if (titleText == null)
                         {
-                            curr_in = filter_time(subs[k + 1]);
-                            curr_out = filter_time(subs[k + 2]);
-                            k += 2;
+                            continue;
                         }
-                        final1 += create_title(count, current_f, curr_in, curr_out)+"\n";
+                        else
+                        {
+                            titleIn = -1;
+                            titleOut = -1;
+                        }
                     }
-                    k++;
+                    final1 += create_title(titleNum++, titleText, titleIn, titleOut) + "\n";
                 }
-
-
+                
                 using (var sfd = new SaveFileDialog())
                 {
                     sfd.Filter = "SRT files (*.srt)|*.srt";
@@ -101,8 +115,6 @@ namespace Nikse.SubtitleEdit.PluginLogic
                         File.WriteAllText(sfd.FileName, final1, Encoding.UTF8);
                     }
                 }
-
-
             }
             return string.Empty;
         }
@@ -117,14 +129,8 @@ namespace Nikse.SubtitleEdit.PluginLogic
             int seconds = n / 25;
             int minutes = seconds / 60;
             int hours = minutes / 60;
-            while (seconds > 59)
-            {
-                seconds = seconds - 60;
-            }
-            while (minutes > 59)
-            {
-                minutes = minutes - 60;
-            }
+            seconds = seconds % 60;
+            minutes = minutes % 60;
             string to_string_format_frames = "";
             string to_string_seconds = "";
             string to_string_minutes = "";
@@ -159,76 +165,9 @@ namespace Nikse.SubtitleEdit.PluginLogic
         {
             return timecode_change(start) + " --> " + timecode_change(end);
         }
-        public static string remove_r(string text)
+        public static string create_title(int number, string content, int startFrame, int endFrame)
         {
-            string new_str = "";
-            new_str = text.Replace("\\r\\n", "\\n");
-            return new_str;
-        }
-        public static string[] separate_to_titles(string text)
-        {
-            return text.Split('\n');
-        }
-        public static string filter_content(string content)
-        {
-            int brackets = 0;
-            int i = 0;
-            string new_content = "";
-            while (i < content.Length - 3)
-            {
-                if ((content[i].ToString() == "\"") && (brackets <= 2))
-                {
-                    brackets++;
-                }
-                else if (brackets == 3)
-                {
-                    if ((content[i].ToString() == "\\") && (content[i+1].ToString() == "\""))
-                    {
-                        i++;
-                        continue;
-                    }
-                    else
-                    {
-                        new_content += content[i].ToString();
-                    }
-                }
-                i++;
-            }
-            new_content = new_content.Replace("\\n", "\n");
-            return new_content;
-        }
-        public static int filter_time(string content)
-        {
-            int space = 0;
-            int i = 0;
-            string new_content = "";
-            while (i < content.Length - 2)
-            {
-                if ((content[i].ToString() == ":") && ((content[i + 1].ToString() == " ")))
-                {
-                    space++;
-                }
-                else if (space == 1)
-                {
-                    new_content += content[i].ToString();
-                }
-                i++;
-            }
-            int extracted;
-            try {
-                extracted = Int32.Parse(new_content);
-            }
-            catch (Exception E)
-            {
-                extracted = -1;
-            }
-            
-            return extracted;
-        }
-
-        public static string create_title(int number, string content, int start, int end)
-        {
-            return number.ToString() + "\n" + create_timestamp(start, end) + "\n" + content + "\n";
+            return number.ToString() + "\n" + create_timestamp(startFrame, endFrame) + "\n" + content + "\n";
         }
     }
 }

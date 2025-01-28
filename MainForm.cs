@@ -28,7 +28,7 @@ namespace SubtitleEdit
             listView1.Columns[2].Width = -2;
             linkLabel1.Click += delegate { Process.Start("https://github.com/SubtitleEdit/plugins/issues/new"); };
         }
-
+        /*
         public MainForm(Subtitle sub, string title, string description, Form parentForm)
             : this()
         {
@@ -37,7 +37,7 @@ namespace SubtitleEdit
             _to = textBoxTo.Text;
             GeneratePreview(false);
         }
-
+        */
         public override sealed string Text
         {
             get { return base.Text; }
